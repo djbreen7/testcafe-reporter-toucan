@@ -1,0 +1,4 @@
+lib
+node_modules
+/config.js
+/src/config.js
