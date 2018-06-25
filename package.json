@@ -1,6 +1,6 @@
 {
   "name": "testcafe-reporter-toucan",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "toucan TestCafe reporter plugin.",
   "repository": "https://github.com/ToucanTesting/testcafe-reporter-toucan",
   "author": {
