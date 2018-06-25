@@ -22,8 +22,8 @@ exports['default'] = () => {
 
         reportFixtureStart: function reportFixtureStart (name, path, meta) {
 
-            console.log(meta.toucanToken);
-            
+            console.log(meta);
+
             if (meta.testCases) {
 
                 this.currentFixtureName = name;
