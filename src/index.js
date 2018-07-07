@@ -49,9 +49,9 @@ exports['default'] = () => {
         },
 
         reportTestDone: async function reportTestDone(name, testRunInfo, meta) {
-            console.log(meta.automationId);
-
             if (meta.automationId) {
+                console.log(meta.automationId);
+
                 const hasErr = !!testRunInfo.errs.length;
 
                 /**
