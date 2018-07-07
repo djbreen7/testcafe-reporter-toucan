@@ -4,46 +4,52 @@ Object.defineProperty(exports, '__esModule', {
     value: true
 });
 
-let toucanToken = '';
-
-let testRunId = '';
-
-let testCases = [];
-
 const axios = require('axios');
+let toucanToken;
+let testRunId;
+let testCases;
 
 exports['default'] = () => {
     return {
         noColors: true,
 
-        reportTaskStart: async function reportTaskStart () {
+        reportTaskStart: async function reportTaskStart() {},
+
+        reportFixtureStart: async function reportFixtureStart(name, path, meta) {
+
+            const auth = await axios.post('https://toucantesting.auth0.com/oauth/token', {
+                'client_id': meta.clientId,
+                'client_secret': meta.clientSecret,
+                'audience': meta.audience,
+                'grant_type': 'client_credentials'
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            toucanToken = auth.data.access_token;
+
+            axios.defaults.headers.common['Authorization'] = 'Bearer ' + toucanToken;
+            axios.defaults.headers.common['Content-Type'] = 'application/json';
+            axios.defaults.headers.common['Accept'] = 'application/json';
+            axios.defaults.baseURL = meta.baseUrl;
+
+            const testRun = await axios.post('/test-runs', {
+                name: meta.testRunTitle,
+                testSuiteId: meta.testSuiteId
+            });
+
+            testRunId = testRun.data.id;
+            const testModule = await axios.get(`/test-suites/${meta.testSuiteId}/test-modules`);
+            testCases = await axios.get(`test-suites/${meta.testSuiteId}/test-modules/${testModule.data[0].id}/test-cases`);
 
         },
 
-        reportFixtureStart: function reportFixtureStart (name, path, meta) {
+        reportTestDone: async function reportTestDone(name, testRunInfo, meta) {
+            console.log(meta.automationId);
 
-            console.log(meta);
-
-            if (meta.testCases) {
-
-                this.currentFixtureName = name;
-
-                toucanToken = meta.toucanToken;
-
-                testRunId = meta.testRunId;
-
-                testCases = meta.testCases;
-
-                axios.defaults.headers.common['Authorization'] = 'Bearer ' + toucanToken;
-                axios.defaults.headers.common['Content-Type'] = 'application/json';
-                axios.defaults.headers.common['Accept'] = 'application/json';
-                axios.defaults.baseURL = 'http://localhost:5000';
-            }
-        },
-
-        reportTestDone: async function reportTestDone (name, testRunInfo, meta) {
             if (meta.automationId) {
-
                 const hasErr = !!testRunInfo.errs.length;
 
                 /**
@@ -52,21 +58,13 @@ exports['default'] = () => {
                  * If hasErr is true, then it should fail
                  */
                 const result = hasErr ? 1 : 0;
-
-                // Make reusable { testCaseId, testModuleId, testRunId }
                 const testResult = {};
-
-                const testCase = testCases.find(c => c.automationId === meta.automationId);
-
-                console.log(testCase.id);
+                const testCase = testCases.data.find(c => c.automationId === meta.automationId);
 
                 if (testCase) {
                     testResult.status = result;
-
                     testResult.testCaseId = testCase.id;
-
                     testResult.testModuleId = testCase.testModuleId;
-
                     testResult.testRunId = testRunId;
 
                     await axios.post('/test-results', testResult);
@@ -74,10 +72,9 @@ exports['default'] = () => {
 
                 name = this.currentFixtureName + ' - ' + name;
             }
-
         },
 
-        reportTaskDone: function reportTaskDone (endTime, passed) {
+        reportTaskDone: function reportTaskDone(endTime, passed) {
             const durationMs = endTime - this.startTime;
             const durationStr = this.moment.duration(durationMs).format('h[h] mm[m] ss[s]');
             let footer = passed === this.testCount ? this.testCount + ' passed' : this.testCount - passed + '/' + this.testCount + ' failed';
