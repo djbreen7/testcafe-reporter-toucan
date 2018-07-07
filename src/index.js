@@ -16,33 +16,35 @@ exports['default'] = () => {
         reportTaskStart: async function reportTaskStart() {},
 
         reportFixtureStart: async function reportFixtureStart(name, path, meta) {
+            if (meta) {
+                const auth = await axios.post('https://toucantesting.auth0.com/oauth/token', {
+                    'client_id': meta.clientId,
+                    'client_secret': meta.clientSecret,
+                    'audience': meta.audience,
+                    'grant_type': 'client_credentials'
+                }, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
 
-            const auth = await axios.post('https://toucantesting.auth0.com/oauth/token', {
-                'client_id': meta.clientId,
-                'client_secret': meta.clientSecret,
-                'audience': meta.audience,
-                'grant_type': 'client_credentials'
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+                toucanToken = auth.data.access_token;
 
-            toucanToken = auth.data.access_token;
+                axios.defaults.headers.common['Authorization'] = 'Bearer ' + toucanToken;
+                axios.defaults.headers.common['Content-Type'] = 'application/json';
+                axios.defaults.headers.common['Accept'] = 'application/json';
+                axios.defaults.baseURL = meta.baseUrl;
 
-            axios.defaults.headers.common['Authorization'] = 'Bearer ' + toucanToken;
-            axios.defaults.headers.common['Content-Type'] = 'application/json';
-            axios.defaults.headers.common['Accept'] = 'application/json';
-            axios.defaults.baseURL = meta.baseUrl;
+                const testRun = await axios.post('/test-runs', {
+                    name: meta.testRunTitle,
+                    testSuiteId: meta.testSuiteId
+                });
 
-            const testRun = await axios.post('/test-runs', {
-                name: meta.testRunTitle,
-                testSuiteId: meta.testSuiteId
-            });
+                testRunId = testRun.data.id;
+                const testModule = await axios.get(`/test-suites/${meta.testSuiteId}/test-modules`);
+                testCases = await axios.get(`test-suites/${meta.testSuiteId}/test-modules/${testModule.data[0].id}/test-cases`);
+            }
 
-            testRunId = testRun.data.id;
-            const testModule = await axios.get(`/test-suites/${meta.testSuiteId}/test-modules`);
-            testCases = await axios.get(`test-suites/${meta.testSuiteId}/test-modules/${testModule.data[0].id}/test-cases`);
 
         },
 
