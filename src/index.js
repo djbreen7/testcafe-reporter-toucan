@@ -16,7 +16,7 @@ exports['default'] = () => {
         reportTaskStart: async function reportTaskStart() {},
 
         reportFixtureStart: async function reportFixtureStart(name, path, meta) {
-            if (meta) {
+            if (meta.baseUrl) {
                 const auth = await axios.post('https://toucantesting.auth0.com/oauth/token', {
                     'client_id': meta.clientId,
                     'client_secret': meta.clientSecret,
