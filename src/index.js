@@ -16,11 +16,11 @@ exports['default'] = () => {
         reportTaskStart: async function reportTaskStart() {},
 
         reportFixtureStart: async function reportFixtureStart(name, path, meta) {
-            if (meta.baseUrl) {
+            if (meta.isFirstFixture) {
                 const auth = await axios.post('https://toucantesting.auth0.com/oauth/token', {
-                    'client_id': meta.clientId,
-                    'client_secret': meta.clientSecret,
-                    'audience': meta.audience,
+                    'client_id': meta.toucan.clientId,
+                    'client_secret': meta.toucan.clientSecret,
+                    'audience': meta.toucan.audience,
                     'grant_type': 'client_credentials'
                 }, {
                     headers: {
@@ -33,19 +33,17 @@ exports['default'] = () => {
                 axios.defaults.headers.common['Authorization'] = 'Bearer ' + toucanToken;
                 axios.defaults.headers.common['Content-Type'] = 'application/json';
                 axios.defaults.headers.common['Accept'] = 'application/json';
-                axios.defaults.baseURL = meta.baseUrl;
+                axios.defaults.baseURL = meta.toucan.baseUrl;
 
                 const testRun = await axios.post('/test-runs', {
-                    name: meta.testRunTitle,
-                    testSuiteId: meta.testSuiteId
+                    name: meta.toucan.testRunTitle,
+                    testSuiteId: meta.toucan.testSuiteId
                 });
 
                 testRunId = testRun.data.id;
-                const testModule = await axios.get(`/test-suites/${meta.testSuiteId}/test-modules`);
-                testCases = await axios.get(`test-suites/${meta.testSuiteId}/test-modules/${testModule.data[0].id}/test-cases`);
+                const testModule = await axios.get(`/test-suites/${meta.toucan.testSuiteId}/test-modules`);
+                testCases = await axios.get(`test-suites/${meta.toucan.testSuiteId}/test-modules/${testModule.data[0].id}/test-cases`);
             }
-
-
         },
 
         reportTestDone: async function reportTestDone(name, testRunInfo, meta) {
