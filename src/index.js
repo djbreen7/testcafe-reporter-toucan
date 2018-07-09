@@ -62,6 +62,10 @@ exports['default'] = () => {
                 const testCase = testCases.data.find(c => c.automationId === meta.automationId);
 
                 if (testCase) {
+                    testCase.lastTested = new Date(Date.now());
+
+                    await axios.put(`/test-cases/${testCase.id}`, testCase);
+
                     testResult.status = result;
                     testResult.testCaseId = testCase.id;
                     testResult.testModuleId = testCase.testModuleId;
