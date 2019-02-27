@@ -5,28 +5,28 @@ Object.defineProperty(exports, '__esModule', {
 });
 
 const axios = require('axios');
+const testCases = [];
 let toucanToken;
 let testRunId;
-let testCases;
 
 exports['default'] = () => {
     return {
         noColors: true,
 
-        reportTaskStart: async function reportTaskStart() {},
+        reportTaskStart: async function reportTaskStart() { },
 
         reportFixtureStart: async function reportFixtureStart(name, path, meta) {
-            if (meta.isFirstFixture) {
+            if (!toucanToken) {
                 const auth = await axios.post('https://toucantesting.auth0.com/oauth/token', {
                     'client_id': meta.toucan.clientId,
                     'client_secret': meta.toucan.clientSecret,
                     'audience': meta.toucan.audience,
                     'grant_type': 'client_credentials'
                 }, {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
 
                 toucanToken = auth.data.access_token;
 
@@ -35,21 +35,37 @@ exports['default'] = () => {
                 axios.defaults.headers.common['Accept'] = 'application/json';
                 axios.defaults.baseURL = meta.toucan.baseUrl;
 
-                const testRun = await axios.post('/test-runs', {
-                    name: meta.toucan.testRunTitle,
-                    testSuiteId: meta.toucan.testSuiteId
+                let testRun = await axios.get('/test-runs', {
+                    params: {
+                        pageNumber: 1,
+                        pageSize: 1,
+                        searchText: meta.toucan.testRunTitle
+                    }
                 });
 
-                testRunId = testRun.data.id;
-                const testModule = await axios.get(`/test-suites/${meta.toucan.testSuiteId}/test-modules`);
-                testCases = await axios.get(`test-suites/${meta.toucan.testSuiteId}/test-modules/${testModule.data[0].id}/test-cases`);
+                if (!testRun.data.length) {
+                    testRun = await axios.post('/test-runs', {
+                        name: meta.toucan.testRunTitle,
+                        testSuiteId: meta.toucan.testSuiteId
+                    });
+    
+                    testRunId = testRun.data.id;
+                } else {
+                    testRunId = testRun.data[0].id;
+                }
+
+                const testModules = (await axios.get(`/test-suites/${meta.toucan.testSuiteId}/test-modules`)).data;
+
+                testModules.forEach(async testModule => {
+                    const results = await axios.get(`test-suites/${meta.toucan.testSuiteId}/test-modules/${testModule.id}/test-cases`);
+
+                    testCases.push(...results.data);
+                })
             }
         },
 
         reportTestDone: async function reportTestDone(name, testRunInfo, meta) {
             if (meta.automationId) {
-                console.log(meta.automationId);
-
                 const hasErr = !!testRunInfo.errs.length;
 
                 /**
@@ -59,7 +75,7 @@ exports['default'] = () => {
                  */
                 const result = hasErr ? 1 : 0;
                 const testResult = {};
-                const testCase = testCases.data.find(c => c.automationId === meta.automationId);
+                const testCase = testCases.find(c => c.automationId === meta.automationId);
 
                 if (testCase) {
                     testCase.lastTested = new Date(Date.now());
@@ -71,7 +87,7 @@ exports['default'] = () => {
                     testResult.testModuleId = testCase.testModuleId;
                     testResult.testRunId = testRunId;
 
-                    await axios.post('/test-results', testResult);
+                    await axios.put('/test-results', testResult);
                 }
 
                 name = this.currentFixtureName + ' - ' + name;
