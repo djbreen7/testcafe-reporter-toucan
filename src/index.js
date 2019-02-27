@@ -87,7 +87,7 @@ exports['default'] = () => {
                     testResult.testModuleId = testCase.testModuleId;
                     testResult.testRunId = testRunId;
 
-                    await axios.put('/test-results', testResult);
+                    await axios.post('/test-results', testResult);
                 }
 
                 name = this.currentFixtureName + ' - ' + name;
