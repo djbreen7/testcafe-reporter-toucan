@@ -9,6 +9,10 @@ const testCases = [];
 let toucanToken;
 let testRunId;
 
+const logError = (err) => {
+    console.log('An error occurred within testcafe-reporter-toucan: ', `\n\t${err.config.method.toUpperCase()} ${err.config.url}\n\t${err.message}`);
+};
+
 exports['default'] = () => {
     return {
         noColors: true,
@@ -23,10 +27,10 @@ exports['default'] = () => {
                     'audience': meta.toucan.audience,
                     'grant_type': 'client_credentials'
                 }, {
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
 
                 toucanToken = auth.data.access_token;
 
@@ -35,32 +39,46 @@ exports['default'] = () => {
                 axios.defaults.headers.common['Accept'] = 'application/json';
                 axios.defaults.baseURL = meta.toucan.baseUrl;
 
-                let testRun = await axios.get('/test-runs', {
-                    params: {
-                        pageNumber: 1,
-                        pageSize: 1,
-                        searchText: meta.toucan.testRunTitle
-                    }
-                });
+                let testRun;
+                let testModules;
+
+                try {
+                    testRun = await axios.get('/test-runs', {
+                        params: {
+                            pageNumber: 1,
+                            pageSize: 1,
+                            searchText: meta.toucan.testRunTitle
+                        }
+                    });
+                }
+                catch (err) {
+                    logError(err);
+                }
 
                 if (!testRun.data.length) {
                     testRun = await axios.post('/test-runs', {
                         name: meta.toucan.testRunTitle,
                         testSuiteId: meta.toucan.testSuiteId
                     });
-    
+
                     testRunId = testRun.data.id;
-                } else {
+                }
+                else
                     testRunId = testRun.data[0].id;
+
+
+                try {
+                    testModules = await axios.get(`/test-suites/${meta.toucan.testSuiteId}/test-modules`);
+                }
+                catch (err) {
+                    logError(err);
                 }
 
-                const testModules = (await axios.get(`/test-suites/${meta.toucan.testSuiteId}/test-modules`)).data;
-
-                testModules.forEach(async testModule => {
+                testModules.data.forEach(async testModule => {
                     const results = await axios.get(`test-suites/${meta.toucan.testSuiteId}/test-modules/${testModule.id}/test-cases`);
 
                     testCases.push(...results.data);
-                })
+                });
             }
         },
 
@@ -80,14 +98,24 @@ exports['default'] = () => {
                 if (testCase) {
                     testCase.lastTested = new Date(Date.now());
 
-                    await axios.put(`/test-cases/${testCase.id}`, testCase);
+                    try {
+                        await axios.put(`/test-cases/${testCase.id}`, testCase);
+                    }
+                    catch (err) {
+                        logError(err);
+                    }
 
                     testResult.status = result;
                     testResult.testCaseId = testCase.id;
                     testResult.testModuleId = testCase.testModuleId;
                     testResult.testRunId = testRunId;
 
-                    await axios.post('/test-results', testResult);
+                    try {
+                        await axios.post('/test-results', testResult);
+                    }
+                    catch (err) {
+                        logError(err);
+                    }
                 }
 
                 name = this.currentFixtureName + ' - ' + name;
